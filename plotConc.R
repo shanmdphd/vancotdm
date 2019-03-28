@@ -589,3 +589,192 @@
     abline(h=data2$troughLV, col='blue', lwd=3)
     abline(h=data2$peakLV,col='red',lwd=3, lty=2)
   })  
+
+  
+  
+  
+  # Scenario 2 ----
+  
+  ## if (input$Observations=='2')
+  ## {
+  ##   y=c(input$obsc1,input$obsc2)
+  ##   
+  ##   mapb2 <- function(eta){
+  ##     etamat=matrix(unlist(eta))
+  ##     out <- lsoda(c(A1=0 ,A2=0), TIME, model, eta, events=list(data=DOSEdata))
+  ##     out <- cbind(out, DV=out[,"A1"]/TVV1) 
+  ##     
+  ##     head(out)
+  ##     
+  ##     eta=c(eta[1],eta[2])
+  ##     eta_m=unlist(matrix(eta,nrow = 2))
+  ##     sig2=EPS2SDsq
+  ##     sig2j <- subset(out[,4],out[,1]==pointtime1)^2*sig2
+  ##     sqwres <- log(sig2j) + (1/sig2j)*(y[1]-subset(out[,4],out[,1]==pointtime1))^2 + (1/sig2j)*(y## [2]-subset(out[,4],out[,1]==pointtime2))^2
+  ##     nOn <- diag(t(eta_m) %*% omega.inv %*% eta_m)
+  ##     return(sum(sqwres)+ nOn)
+  ##   }
+  ##   
+  ## }
+  # End of Scenario 2 ----
+  
+    
+    ## Scenario 2-1. Two observation ----  
+    ##
+    ## if (input$Observations=='2')
+    ## {
+    ##   Observeddate1=paste(input$obsd1, substr(input$obst1, 12, 20))
+    ##   Observeddate2=paste(input$obsd2, substr(input$obst2, 12, 20))
+    ##   
+    ##   pointtime1=abs(as.numeric(difftime(before[1],Observeddate1,units="hours")))  #pointtime
+    ##   pointtime2=abs(as.numeric(difftime(before[1],Observeddate2,units="hours")))  #pointtime
+    ##   
+    ##   
+    ##   dose2 = input$newdose
+    ##   
+    ##   ######  4. population INFORM. 
+    ##   
+    ##   CLPOP = 2.82      #Creatine Level Compartment1
+    ##   CLPOP2 = 0.837      #Creatine Level Compartment2
+    ##   V1POP = 31.7      #Volume Compartment1
+    ##   QPOP = 11.8
+    ##   V2POP = 75.9      #Volume Compartment1
+    ##   
+    ##   
+    ##   # calculation 
+    ##   
+    ##   nd1=sum(cumprod(rawdata2[,4]>0))  #ndoses=number of dosing
+    ##   nd=sum(cumprod(rawdata2[,4]>0))*2  #ndoses=number of dosing
+    ##   B1T=0            #Time of first dosing
+    ##   
+    ##   vec=c(Observeddate1,Observeddate2)
+    ##   
+    ##   vec[1]<vec[2]
+    ##   Observeddatef=c()
+    ##   
+    ##   fun.obsdate<-function(vec){
+    ##     if(vec[1]>vec[2]) Observeddatef=vec[1]
+    ##     if(vec[1]<vec[2]) Observeddatef=vec[2]
+    ##     return(Observeddatef)
+    ##   }
+    ##   
+    ##   fun.obsdate(vec)
+    ##   
+    ##   pointtime3=abs(as.numeric(difftime(before[1],fun.obsdate(vec),units="hours")))   #pointtime
+    ##   
+    ##   newtau=ceiling(as.numeric(difftime(fun.obsdate(vec),before[nd1],units="hours")))   
+    ##   
+    ##   
+    ##   result222=c()
+    ##   
+    ##   for (i in 1:nd1){
+    ##     result222[i]=abs(as.numeric(difftime(before[i],before[1],units="hours")))
+    ##     #print(result222)
+    ##   }
+    ##   
+    ##   tau=result222
+    ##   
+    ##   maxtime=max(tau)+newtau      #nd*tau
+    ##   maxtime
+    ##   
+    ##   
+    ##   
+    ##   i=c()
+    ##   v = RATE3
+    ##   result=c()
+    ##   
+    ##   for(i in 1:(nd)){
+    ##     print(i)
+    ##     result[i] = list(append(c(v[i]),0))
+    ##     #print(result)
+    ##     if(i==nd)break;
+    ##   }
+    ##   
+    ##   
+    ##   result = c(do.call("cbind",result))
+    ##   result
+    ##   
+    ##   RATEinf<-result  #RATE by point
+    ##   RATEinf
+    ##   flag<-complete.cases(RATEinf)
+    ##   RATEinf=RATEinf[flag]
+    ##   RATEinf
+    ##   
+    ##   
+    ##   cat("RATEinf:",RATEinf,length(RATEinf))
+    ##   
+    ##   
+    ##   
+    ##   resultf=c()
+    ##   result2=c()
+    ##   result22=c()
+    ##   
+    ##   a=append(tau,c(outer(max(tau),c(abs(newtau)*(1:nd1)),"+")))
+    ##   a
+    ##   i=c()
+    ##   num=1
+    ##   b=infTime3
+    ##   
+    ##   
+    ##   for (i in 1:(nd+1)){
+    ##     result22[i]=a[i]
+    ##     #cat("i=",i,"num=",num,"\n")
+    ##     #print(result22[i])
+    ##     resultf[num]=result22[i]
+    ##     
+    ##     
+    ##     if(i==nd+1)break;
+    ##     
+    ##     num=num+1
+    ##     
+    ##     result2[num]=a[i]+b[i]
+    ##     #cat("i=",i,"num=",num,"\n")
+    ##     #print(result2[num])
+    ##     resultf[num]=result2[num]
+    ##     
+    ##     i=i+1
+    ##     num=num+1
+    ##     
+    ##   }
+    ##   
+    ##   TIMEinf=resultf
+    ##   
+    ##   
+    ##   TIMEinf
+    ##   
+    ##   flag<-complete.cases(TIMEinf)
+    ##   TIMEinf=TIMEinf[flag]
+    ##   TIMEinf
+    ##   cat("TIMEinf:",TIMEinf,length(TIMEinf))
+    ##   
+    ##   Cstepdoseinf <- approxfun(TIMEinf, RATEinf, method = "const")
+    ##   Cstepdoseinf(0:max(TIMEinf))
+    ##   length(Cstepdoseinf(0:max(TIMEinf)))
+    ##   
+    ##   n=1
+    ##   ID = seq(from = 1, to = n, by = 1)
+    ##   TVCL=CLPOP*(CLCR/72)**CLPOP2
+    ##   TVV2 <- V2POP*(WEIGHT/60)
+    ##   TVV1 <- V1POP
+    ##   Q  <- QPOP
+    ##   
+    ##   B1T=0
+    ##   TIME <- seq(from = 0, to = pointtime3, by =0.1)
+    ##   TIME <- sort(unique(c(TIME,B1T)))
+    ##   TIMElast <- max(TIME)
+    ## }
+    ## 
+    ## End of scenario 2 ----
+    
+    ## Scenario 2.3 ----
+    ## if(input$Observations=='2'){
+    ##   outs$observedConc1=obs11conc
+    ##   outs$observedConc2=obs2conc
+    ##   outs$pointtime1=pointtime1
+    ##   outs$pointtime2=pointtime2
+    ##   outs$Observeddate=fun.obsdate(vec)
+    ##   outs$predictedConc1=subset(outs[,4],outs[,1]==pointtime1)
+    ##   outs$predictedConc2=subset(outs[,4],outs[,1]==pointtime2)
+    ## }
+    ## End of Scenario 2 ----
+    

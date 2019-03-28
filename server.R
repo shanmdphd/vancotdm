@@ -1,12 +1,24 @@
 # setup ----
 
-caffMu <- c(0, 0, 0)
-caffSigma <- matrix(c(1,2,3,
-                      4,5,6,
-                      7,8,9), nrow = 3) %>% 
-  print()
+default_dose_example_csv <- '"Date","Dosing_Time","Route","Dose"
+"17.05.03","10:30","PO","500"
+"17.05.04","10:30","PO","500"'
 
-# deployApp()
+input <- list( # These values should be defined in ui.R.
+  sex = 'male',
+  obsc = 50, obsDate = "2017-05-05", obsTime = strptime("10:30", "%R"),
+  weight = 60,
+  Observations = '1',
+  total_bilirubin = 1,
+  scr = 0.9,
+  post_op_date = 3,
+  newdose = 1000,
+  newtau = 48,
+  newinf = 1,
+  ll = 15,
+  ul = 40,
+  age = 20
+)
 
 library(deSolve)
 library(plyr)
@@ -21,11 +33,7 @@ library(DT)
 library(rsconnect)
 library(tidyverse)
 
-default_dose_example_csv <- '"Date","Inf_st_Time","Inf_ed_Time","Dose"
-"17.05.03","10:30","11:30","500"
-"17.05.03","22:30","23:30","750"
-"17.05.04","10:30","11:30","1000"
-"17.05.04","22:30","23:30","1000"'
+# dose in mg kg당 6-8mg : 8*60
 
 calculate_crcl <- function(age, weight, sex, scr){
   crcl <- ((140-age) * weight * ifelse(sex == 'Female', 0.85, 1)) / (72*scr)
@@ -150,12 +158,12 @@ shiny::shinyServer(function(input, output) {
   
   sim.data <- reactive({
     
-  # prelude 3. sim.data ----
+    # prelude 3. sim.data ----
     
     # input: Observation
     obs1conc <- input$obsc
     obs1time <- input$obst
-    obs1dat <- input$obsd
+    obs1dat  <- input$obsd
     
     # input: Demog
     WEIGHT   <- input$weight
@@ -164,10 +172,10 @@ shiny::shinyServer(function(input, output) {
     POD_week <- input$post_op_date/7
     
     # Typical Values
-    TVCL <- 28.5-1.24*POD_week-0.252*(TBIL-10)+0.188*(WEIGHT-60)-0.191*(AGE - 40)
-    TVV1 <- 31.7                     
-    TVKA <- 1.28
-
+    TVCL <- 28.5 - 1.24*POD_week - 0.252*(TBIL-10) + 0.188*(WEIGHT-60) - 0.191*(AGE - 40)
+    TVV1 <- 133.00
+    TVKA <-   1.28
+    
     # Eta (Omega)
     ETA1SD <- 0.04     # Vancomycin Clearance eta 
     ETA2SD <- 0.04     # Vancomycin Volume eta
@@ -177,6 +185,7 @@ shiny::shinyServer(function(input, output) {
       print()
     
     # Eps (Sigma)
+    
     EPS1SD <- 40      # Vancomycin Additive residual error   
     EPS2SD <- 0.1     # Vancomycin Proportional residual error
     EPS2SDsq=(EPS2SD)^2 # Vancomycin square
@@ -191,12 +200,11 @@ shiny::shinyServer(function(input, output) {
       as.data.frame() %>% 
       print()
     
-    rawdata2 <- rawdata[complete.cases(rawdata), ] %>% 
-      print()
+    rawdata2 <- rawdata[complete.cases(rawdata), ]
     
     # infusion duration
-    infTime3 <- as.numeric(difftime(strptime(rawdata2[,3],"%H:%M"),
-                                    strptime(rawdata2[,2],"%H:%M"),
+    infTime3 <- as.numeric(difftime(strptime(rawdata2[,3],"%H:%M"), # end
+                                    strptime(rawdata2[,2],"%H:%M"), # start
                                     units="hours")) %>% 
       print()
     
@@ -214,8 +222,6 @@ shiny::shinyServer(function(input, output) {
     after=strptime(paste(rawdata[,1],rawdata[,3]), "%y.%m.%d %H:%M")
     after
     
-    # Scenario 1. One observation ----------
-    
     if (input$Observations=='1')
     {
       Observeddate=paste(input$obsDate, substr(input$obsTime, 12, 20))
@@ -225,11 +231,12 @@ shiny::shinyServer(function(input, output) {
       
       # calculation
       
-      nd1=sum(cumprod(rawdata2[,4]>0))  #ndoses=number of dosing
-      nd=sum(cumprod(rawdata2[,4]>0))*2  #ndoses=number of dosing
-      B1T=0            #Time of first dosing
-      nd2=nd*3
+      nd1=sum(cumprod(rawdata2$Dose>0))  #ndoses=number of dosing
+      nd=sum(cumprod(rawdata2$Dose>0))*2  # number of dosing x 2
+      B1T=0            #Time of first dosing 
+      nd2=nd*3 # number of dosing x 3
       
+      # first dose to the last dose
       newtau=ceiling(as.numeric(difftime(Observeddate,before[nd1],units="hours")))   #time duration
       
       result222=c()
@@ -254,14 +261,14 @@ shiny::shinyServer(function(input, output) {
         #print(result)
         if(i==nd)break;
       }
-      
-      
+       
       result = c(do.call("cbind",result))
       result
       
       RATEinf <- result  #RATE by point
       RATEinf
-      flag<-complete.cases(RATEinf)
+      
+      flag <- complete.cases(RATEinf)
       RATEinf=RATEinf[flag]
       RATEinf
       
@@ -280,7 +287,7 @@ shiny::shinyServer(function(input, output) {
         #cat("i=",i,"num=",num,"\n")
         #print(result22[i])
         resultf[num]=result22[i]
-         
+        
         if(i==nd+1)break;
         num=num+1
         result2[num]=a[i]+b[i]
@@ -297,15 +304,15 @@ shiny::shinyServer(function(input, output) {
       
       flag<-complete.cases(TIMEinf)
       TIMEinf=TIMEinf[flag]
-      cat(TIMEinf)
-      cat('\n')
-      cat(RATEinf)
       list(TIMEinf, RATEinf) %>% map(length)
       
-      Cstepdoseinf <- approxfun(TIMEinf, RATEinf, method = "const")
+      Cstepdoseinf <- approxfun(TIMEinf, RATEinf, method = "constant")
       Cstepdoseinf(0:max(TIMEinf))
+      Cstepdoseinf(0)
       length(Cstepdoseinf(0:max(TIMEinf)))
       
+      Cstepdoseinf(c(0.1,0.2,1))
+       
       n=1
       ID = seq(from = 1, to = n, by = 1)
       # TVCL=CLPOP*(CLCR/72)**CLPOP2
@@ -314,236 +321,64 @@ shiny::shinyServer(function(input, output) {
       # Q  <- QPOP
       
       B1T=0
-      TIME <- seq(from = 0, to = pointtime, by =0.1)
+      TIME <- seq(from = 0, to = pointtime, by = 0.1)
       TIME <- sort(unique(c(TIME,B1T)))
       TIMElast <- max(TIME)
     }
-    
-    ## Scenario 2. Two observation ----  
-    ##
-    ## if (input$Observations=='2')
-    ## {
-    ##   Observeddate1=paste(input$obsd1, substr(input$obst1, 12, 20))
-    ##   Observeddate2=paste(input$obsd2, substr(input$obst2, 12, 20))
-    ##   
-    ##   pointtime1=abs(as.numeric(difftime(before[1],Observeddate1,units="hours")))  #pointtime
-    ##   pointtime2=abs(as.numeric(difftime(before[1],Observeddate2,units="hours")))  #pointtime
-    ##   
-    ##   
-    ##   dose2 = input$newdose
-    ##   
-    ##   ######  4. population INFORM. 
-    ##   
-    ##   CLPOP = 2.82      #Creatine Level Compartment1
-    ##   CLPOP2 = 0.837      #Creatine Level Compartment2
-    ##   V1POP = 31.7      #Volume Compartment1
-    ##   QPOP = 11.8
-    ##   V2POP = 75.9      #Volume Compartment1
-    ##   
-    ##   
-    ##   # calculation 
-    ##   
-    ##   nd1=sum(cumprod(rawdata2[,4]>0))  #ndoses=number of dosing
-    ##   nd=sum(cumprod(rawdata2[,4]>0))*2  #ndoses=number of dosing
-    ##   B1T=0            #Time of first dosing
-    ##   
-    ##   vec=c(Observeddate1,Observeddate2)
-    ##   
-    ##   vec[1]<vec[2]
-    ##   Observeddatef=c()
-    ##   
-    ##   fun.obsdate<-function(vec){
-    ##     if(vec[1]>vec[2]) Observeddatef=vec[1]
-    ##     if(vec[1]<vec[2]) Observeddatef=vec[2]
-    ##     return(Observeddatef)
-    ##   }
-    ##   
-    ##   fun.obsdate(vec)
-    ##   
-    ##   pointtime3=abs(as.numeric(difftime(before[1],fun.obsdate(vec),units="hours")))   #pointtime
-    ##   
-    ##   newtau=ceiling(as.numeric(difftime(fun.obsdate(vec),before[nd1],units="hours")))   
-    ##   
-    ##   
-    ##   result222=c()
-    ##   
-    ##   for (i in 1:nd1){
-    ##     result222[i]=abs(as.numeric(difftime(before[i],before[1],units="hours")))
-    ##     #print(result222)
-    ##   }
-    ##   
-    ##   tau=result222
-    ##   
-    ##   maxtime=max(tau)+newtau      #nd*tau
-    ##   maxtime
-    ##   
-    ##   
-    ##   
-    ##   i=c()
-    ##   v = RATE3
-    ##   result=c()
-    ##   
-    ##   for(i in 1:(nd)){
-    ##     print(i)
-    ##     result[i] = list(append(c(v[i]),0))
-    ##     #print(result)
-    ##     if(i==nd)break;
-    ##   }
-    ##   
-    ##   
-    ##   result = c(do.call("cbind",result))
-    ##   result
-    ##   
-    ##   RATEinf<-result  #RATE by point
-    ##   RATEinf
-    ##   flag<-complete.cases(RATEinf)
-    ##   RATEinf=RATEinf[flag]
-    ##   RATEinf
-    ##   
-    ##   
-    ##   cat("RATEinf:",RATEinf,length(RATEinf))
-    ##   
-    ##   
-    ##   
-    ##   resultf=c()
-    ##   result2=c()
-    ##   result22=c()
-    ##   
-    ##   a=append(tau,c(outer(max(tau),c(abs(newtau)*(1:nd1)),"+")))
-    ##   a
-    ##   i=c()
-    ##   num=1
-    ##   b=infTime3
-    ##   
-    ##   
-    ##   for (i in 1:(nd+1)){
-    ##     result22[i]=a[i]
-    ##     #cat("i=",i,"num=",num,"\n")
-    ##     #print(result22[i])
-    ##     resultf[num]=result22[i]
-    ##     
-    ##     
-    ##     if(i==nd+1)break;
-    ##     
-    ##     num=num+1
-    ##     
-    ##     result2[num]=a[i]+b[i]
-    ##     #cat("i=",i,"num=",num,"\n")
-    ##     #print(result2[num])
-    ##     resultf[num]=result2[num]
-    ##     
-    ##     i=i+1
-    ##     num=num+1
-    ##     
-    ##   }
-    ##   
-    ##   TIMEinf=resultf
-    ##   
-    ##   
-    ##   TIMEinf
-    ##   
-    ##   flag<-complete.cases(TIMEinf)
-    ##   TIMEinf=TIMEinf[flag]
-    ##   TIMEinf
-    ##   cat("TIMEinf:",TIMEinf,length(TIMEinf))
-    ##   
-    ##   Cstepdoseinf <- approxfun(TIMEinf, RATEinf, method = "const")
-    ##   Cstepdoseinf(0:max(TIMEinf))
-    ##   length(Cstepdoseinf(0:max(TIMEinf)))
-    ##   
-    ##   n=1
-    ##   ID = seq(from = 1, to = n, by = 1)
-    ##   TVCL=CLPOP*(CLCR/72)**CLPOP2
-    ##   TVV2 <- V2POP*(WEIGHT/60)
-    ##   TVV1 <- V1POP
-    ##   Q  <- QPOP
-    ##   
-    ##   B1T=0
-    ##   TIME <- seq(from = 0, to = pointtime3, by =0.1)
-    ##   TIME <- sort(unique(c(TIME,B1T)))
-    ##   TIMElast <- max(TIME)
-    ## }
-    ## 
-    ## End of scenario 2 ----
     
     # Cstepdoseinf(T) function : 
     # please refer to  http://onlinelibrary.wiley.com/doi/10.1002/psp4.21/full#footer-support-info
     
     DOSEdata <- data.frame(var    = rep(1, times = nd1),
                            time   = tau,  #seq(0,TIMElast-tau,tau),
-                           value  = rep(0, times = nd1),
+                           value  = rep(500, times = nd1),
                            method = rep("add", times = nd1))
     
+    # model ----
     
-     
-    # model  ----
-    
-    model <- function(Time,A,eta){
-      RateC <-Cstepdoseinf(Time)
-      K1=QPOP/V1POP
-      K2=QPOP/(TVV2*exp(eta[2]))
-      K3=(TVCL*exp(eta[1])) / TVV1
+    model <- function(Time, A, eta){
+      Ka <- TVKA
+      Cl <- TVCL * exp(eta[1])
+      Vd <- TVV1 * exp(eta[2])
+      
+      Ke <-  Cl/Vd  # Elimination
       
       dA <- vector(length = 2)
-      dA[1] = (RateC) - (K1*A[1]) + (K2*A[2]) - (K3*A[1])  # Central compartment 
-      dA[2] = (K1*A[1]) - (K2*A[2])                        # Peripheral compartment 
-      
+      dA[1] <- -Ka * A[1]              # Depot compartment - intestine 
+      dA[2] <-  Ka * A[1] - Ke * A[2]   # Central compartment - plasma
       return(list(dA))
     }
     
     mod.cmp <-  compiler::cmpfun(model)
-    
-    #A_0 <- c(A1 = 0, A2 = 0)
-    
+    initial_amount <- c(A1 = 0, A2 = 0) 
     if (input$Observations=='1') {
-      y <- c(obs1conc) 
-      mapb2 <- function(eta){ # eta is a list of 2. 
+      y <- c(obs1conc)
+      #' @example mapb2(c(0.1, 0.1))
+      mapb2 <- function(eta){ # eta is a list of 2. eta <- c(0.4321,0.4321)
         etamat=matrix(unlist(eta))
-        out <- lsoda(y = c(A1=0 ,A2=0), 
-                     times = TIME, 
-                     func = model, 
-                     parms = eta, 
-                     events=list(data=DOSEdata))
-        out <- cbind(out, DV=out[,"A1"]/TVV1) 
+        out <- deSolve::lsoda(y = initial_amount, 
+                              times = TIME, 
+                              func = model, 
+                              parms = eta, 
+                              events=list(data=DOSEdata))
+        out <- cbind(out, DV=out[,"A2"]/TVV1)
+        head(out)
         
         eta <- c(eta[1],eta[2])
         eta_m <- unlist(matrix(eta,nrow = 2))
         sig2 <- EPS2SDsq
-        sig2j <- subset(out[,4],out[,1]==pointtime)^2*sig2
-        sqwres <- log(sig2j) + (1/sig2j)*(y[1]-subset(out[,4],out[,1]==pointtime))^2
+        sig2j <- subset(out[,3],out[,1]==pointtime)^2*sig2
+        sqwres <- log(sig2j) + (1/sig2j) * (y[1]-subset(out[,3],out[,1]==pointtime))^2
         nOn <- diag(t(eta_m) %*% omega.inv %*% eta_m)
-        
         return(sum(sqwres)+ nOn)
-      }
+      } 
     }
     
-    # Scenario 2 ----
-    
-    ## if (input$Observations=='2')
-    ## {
-    ##   y=c(input$obsc1,input$obsc2)
-    ##   
-    ##   mapb2 <- function(eta){
-    ##     etamat=matrix(unlist(eta))
-    ##     out <- lsoda(c(A1=0 ,A2=0), TIME, model, eta, events=list(data=DOSEdata))
-    ##     out <- cbind(out, DV=out[,"A1"]/TVV1) 
-    ##     
-    ##     head(out)
-    ##     
-    ##     eta=c(eta[1],eta[2])
-    ##     eta_m=unlist(matrix(eta,nrow = 2))
-    ##     sig2=EPS2SDsq
-    ##     sig2j <- subset(out[,4],out[,1]==pointtime1)^2*sig2
-    ##     sqwres <- log(sig2j) + (1/sig2j)*(y[1]-subset(out[,4],out[,1]==pointtime1))^2 + (1/sig2j)*(y## [2]-subset(out[,4],out[,1]==pointtime2))^2
-    ##     nOn <- diag(t(eta_m) %*% omega.inv %*% eta_m)
-    ##     return(sum(sqwres)+ nOn)
-    ##   }
-    ##   
-    ## }
-    # End of Scenario 2 ----
-    
     mapb2.cmp <- cmpfun(mapb2)
-    ini <- c(0.1,0.1)
+    ini <- c(0.04,0.04)
+    mapb2.cmp(ini)
+    
+    # Method "L-BFGS-B" is that of Byrd et. al. (1995) which allows box constraints, that is each variable can be given a lower and/or upper bound. The initial value must satisfy the constraints. This uses a limited-memory modification of the BFGS quasi-Newton method. If non-trivial bounds are supplied, this method will be selected, with a warning.
     
     #shiny::withProgress(
     #  message = 'Minimization in progress', 
@@ -551,24 +386,25 @@ shiny::shinyServer(function(input, output) {
     #  max = 100,
     #  value = 99, 
     #  {
-        FIT <- stats::optim(par = ini, 
-                            fn = mapb2.cmp, # A function to be minimized (or maximized)
-                            method="L-BFGS-B", 
-                            control = list(trace=TRUE,REPORT=TRUE))
-        print(FIT)
+    FIT <- stats::optim(par = ini, # CL, V => fitting
+                        fn = mapb2.cmp, # A function to be minimized (or maximized)
+                        method="L-BFGS-B", 
+                        control = list(trace=TRUE,REPORT=TRUE))
+    print(FIT$par)
+    
     #  }
     #)
     #FIT <- list(par=c(-0.15379907 , 0.08570668))
     # cat("FIT$par=",FIT$par)
     # cat("omega.inv=",omega.inv)
-        
-    outs <- lsoda(y = c(A1=0, A2=0), 
-                 times = TIME, 
-                 func = mod.cmp,  
-                 parms = FIT$par,
-                 events = list(data = DOSEdata )) %>% 
+    
+    outs <- lsoda(y = initial_amount, 
+                  times = TIME, 
+                  func = mod.cmp,  
+                  parms = FIT$par,
+                  events = list(data = DOSEdata )) %>% 
       as.data.frame() %>% 
-      mutate(DV = A1/TVV1) %>% 
+      mutate(DV = A2/TVV1) %>% 
       mutate(maxtime = maxtime) %>% 
       print()
     
@@ -579,26 +415,14 @@ shiny::shinyServer(function(input, output) {
     if (input$Observations=='1'){
       outs$pointtime=pointtime  
       outs$Observeddate=Observeddate
-      outs$predictedConc=subset(outs[,4],outs[,1]==pointtime)
+      outs$predictedConc=subset(outs[,3],outs[,1]==pointtime)
       outs$observedConc=obs1conc
     }
     
-    ## Scenario 2 ----
-    ## if(input$Observations=='2'){
-    ##   outs$observedConc1=obs11conc
-    ##   outs$observedConc2=obs2conc
-    ##   outs$pointtime1=pointtime1
-    ##   outs$pointtime2=pointtime2
-    ##   outs$Observeddate=fun.obsdate(vec)
-    ##   outs$predictedConc1=subset(outs[,4],outs[,1]==pointtime1)
-    ##   outs$predictedConc2=subset(outs[,4],outs[,1]==pointtime2)
-    ## }
-    ## End of Scenario 2 ----
-    
-    outs$TIME=TIME
+    outs$TIME <- TIME
     outs$CL <- TVCL*(exp(FIT$par[1]))    #predicted CL
-    outs$V2 <- TVV2*(exp(FIT$par[2]))    #predicted V2
-    outs$V1 <- V1POP   #predicted V1
+    outs$V1 <- TVV1*(exp(FIT$par[2]))    #predicted V2
+    
     # 
     #     if (input$Observations=='1')
     #     {
@@ -611,7 +435,10 @@ shiny::shinyServer(function(input, output) {
     #     }
     
     outs2=merge(x=outs,y=DOSEdata, by="time",all.x=TRUE)
-    outs2
+    head(outs2);tail(outs2)
+    outs2 %>% as_tibble()
+    outs2 %>% as_tibble() %>% 
+      ggplot(aes(time, DV)) + geom_point() + geom_hline(yintercept = c(0.050, 0.200))
   })
   # end ----  
 })
